@@ -1,0 +1,470 @@
+this project css template was built by bootstrap and bootswatch
+
+
+1) try to use both @inclue @yield and x-blades
+2) to change web title, first chang it in env and app.php then add      <title>{{ $config('app.name') }}</title>
+
+3) use this code if you want to send data as session
+
+instead of      return redirect(route())
+use             return redirect()->route()->with('message', 'success');
+
+now every where you want to access session just =>  session('message')
+
+4) for search method i think its better to create an invokable controller
+-> then in it do as below
+
+public function __invoke(Request $request)
+    {
+        $ideas = Idea::query()->where('content', 'LIKE', '%'.$request->search.'%')->get();
+
+        return view('components.idea.search', [
+            'ideas' => $ideas
+        ]);
+    }
+
+OR
+-> in index where you get all datas from database (in this app index() in dashboardcontroller):
+pufu index()
+{
+    $idea = Idea::all();
+    if (request()->has('search')) {
+        $idea = $idea->where('content', 'LIKE', '%'.$request->search.'%')->get();
+    }
+    ...
+}
+
+
+
+5) instead of froo make it more simpler
+$table->foreignId('user_id')->constrained()->cascadeOnDelete();
+
+6) if you are using tailwind or bootstrap remeber for pagination you have to add its related codes to appserviceprovider in boot method:
+public function boot(): void
+    {
+        Paginator::useBootstrapFive();
+    }
+
+then in blade use links:
+{{ $ideas->links() }}
+and done
+
+7) forelse prop
+a very simple example is in search.blade
+
+8) route resource
+Route::resource('ideas', IdeaController::class)->middleware('auth')->names([
+    'store' => 'create-idea',
+    'show' => 'show-idea',
+    'edit' => 'edit-idea',
+    'update' => 'update-idea',
+    'destroy' => 'delete-idea',
+]);
+
+-> note that if you are using a different names, use names method and set names like above
+
+9) new image validation
+'profile' => ['nullable', File::image()->min('1kb')->max('10mb'),],
+
+
+10) Storage => saving POST files to accessible storage
+I) make a function in user model
+    public function getProfileUrl()
+    {
+        if (str_contains($this->profile , "profile/")) {
+            return url('storage/'.$this->profile);
+        }
+
+        return $this->profile;
+    }
+
+II) then alter all of the get methods in blade meaning chage $user->profile into    $user->getProfileUrl()
+III) php artisan storage:link
+IV) in controller where you validate profile image add path to store image url in where you want
+
+    // validation
+        $validated = $request->validate([
+            'profile' => ['nullable', File::types(['png', 'jpg', 'jpeg', 'webp', 'svg'])->image()->min('1kb')->max('10mb'),],
+        ]);
+
+    // if req has profile img
+        if ($request->has('profile')) {
+            $imgPath = $request->file('profile')->store('profile','public');
+            $validated['profile'] = $imgPath;
+        }
+
+V) for the final relief, check if in path Storage/app/public/profile and public/storage/profile exist or not.
+if yes you are done
+if no sth went wrong
+
+VI) prevent from hashing the name:
+check hesams course
+
+VII) attach/detach
+in follow unfollow example, to set follow method to data base use attach and for unfollow use detach
+
+    $unfollower->followings()->detach($user);
+    $follower->followings()->attach($user);
+
+-> you can also use sync method too
+
+
+Email
+1) php artisan make:mail [name]
+
+-> envelope() is header of your email
+-> Envelope => contains many methods like from subject replyto and ...
+
+-> content() is what user sees
+-> attachment() incase if you want to send some attachments
+
+2) type related codes in methods told above in mail php file
+3) config mail php file in mail.php config
+for both 3 and 2 steps you can check laravel.com
+
+4) in controller where you add register controller after creating new user add send email codes:
+Mail::to(newuser)->send(new [Emailcontroller created in step 1]);
+
+5) add .env configurations in env file
+
+6) in attachment import Attachment from mail then you can attach from local path disk and ...
+
+
+
+VIII) request()->is() == Route::is()
+
+IX) laravel debugger , eager and lazy loading
+-> always fetch all models using        with()         method because in this case we are preventing app from lazy loading
+-> you can use eager loading in the model itself from the begining
+    protected $with = []
+ NOTE: in this method we always use eager loading now if you dont want to use it in some routes unlike first method add     Model::without()    in the code
+    $ideas = Idea::without('user')->get();
+
+-> in second method you can modify which column you need:
+    protected $with = [
+        'user:id,name,profile'
+    ]
+NOTE: make sure not ato add space btw column names
+
+
+Delete) follow/unfollow like/dislike
+-> first create controller for both methods
+-> second create post routes for both methods
+-> create migration and table for   follow: follwer_user    like: idea_like
+-> create methods like  followe: followings(), followers(), follows() and   like: likes(), liked()
+-> for more details check every method
+-> use attach and detach for every related method
+
+
+Breeze
+1) composer require laravel/breeze --dev
+2) php artisan breeze:install
+3) go on as steps
+
+
+XI) creating feed page
+in feed page we are trying to show only following's ideas.
+-> first create an invokable controller
+-> use pluck method to get followings id
+-> only use      whereIn     method to get following's ideas not where
+-> create a route for feed
+
+
+Carbon
+-> visit for more methods: https://medium.com/@mhmmdtech/datetime-handling-in-laravel-by-carbon-39e032a15a15
+
+in this app two methods were used:
+1) $idea->created_at->diffForHumans()
+2) {{ \Carbon\Carbon::parse($idea->created_at)->format('Y/m/d h:m') }}
+
+
+Admin page and creating middlware
+-> create routes, controllers, add is_admin column to users and add admin route to routeserveice
+-> php artisan make:middleware IsUserAdmin
+-> add IsUserAdmin middleware in the kernel.php in middlewareAliases as what name you want => forexample 'admin'
+-> add related abort codes for the created middleware in php file which created as middleware
+-> just add middlware in routes you need
+-> every where in blade you need to access admin just use user->is_admin
+
+
+Gates
+1) Typically, gates are defined within the      boot     method of the AppServiceProvider or AuthServiceProvider
+2) static method    Gate::define('isAdmin')
+
+3) to use gate in methods like show, index and ... :
+-> allow
+    Gate::allows('isAdmin')
+-> deny
+    Gate::denies('isAdmin')
+
+-> authorize
+    $this->authorize('isAdmin')
+    Gate::authorize('isAdmin')
+
+4) access gates using middlware
+-> can
+    Route::get()->middleware('can:isAdmin');
+
+5) also you can use can in blade
+    @can('gateName', other args if exist in gate::define expect first one)
+    @endcan
+
+
+Policies => in big projects try to use policies
+1) php artisan make:policy [name] --model
+2) in created policy.php:
+-> you see many methods like view viewany destroy forcedelete and ... same as creating resource controller
+-> define methods you need
+
+3) to use policies:
+NOTE: first of if you have gates handeling the permissions or role delete them
+-> like authorize method in gates:
+    $this->authorize('methodNameInPolicy', Model) =>
+pufu edit(Idea $idea)
+{
+    $this->authorize('update', $idea);
+    ...
+}
+
+-> change @can in blade into what policiy methods you are using
+    @can('update', $idea)
+    @endcan
+
+4) if you are using different name in policies for example instead of IdeaPolicy using IdeaPermission. laravel cant find this as a policy so in this case in    AuthServiceProvider     there is protected key named $policies:
+    protected $policies = [
+        Idea::class => IdeaPermission::class
+    ];
+
+
+Form Requests =>    For more complex validation scenarios, you may wish to create a "form request".
+1) php artisan make:request name
+2) there is two methods,    authorize() and rules()
+
+3) rules()
+-> add validations inside []
+    public function rules(): array
+    {
+        return [
+            'name' => ['required', 'min:2', 'max:250', 'string'],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($this->user->id)],
+            'profile' => ['nullable', File::types(['png', 'jpg', 'jpeg', 'webp', 'svg'])->image()->min('1kb')->max('10mb'),],
+            'about' => ['nullable', 'min:100',  'string'],
+        ];
+    }
+NOTE: to access models use $this->user for example
+
+-> then in controller where you took validations just do as below:
+    $validated = $request->validated();
+
+-> remeber to add Form Request file name instead of Request in the method binding:
+    public function update(UpdateUserRequest $request, User $user)
+    {
+        $validated = $request->validated();
+        ...
+    }
+
+
+4) authorize()
+-> this is better way of using policy, you can do as below
+    public function authorize(): bool
+    {
+        return $this->user()->can('update', $this->user);
+    }
+
+-> then in controller remove    $this->authorize();
+
+NOTE: if you want to use policy make sure to return authorize() in formrequest.php true
+
+    public function authorize(): bool
+    {
+        return true;
+    }
+    -> then add     $this->authorize()     in controllers
+
+
+Eager loading count()
+-> change    $idea->likes_count       to       $idea->likes_count
+1) in controller where you get $ideas do as below
+
+
+#41) custom page title
+-> I) <title> {{ config('app.name') }} - {{ Str::headline(Route::currentRouteName()) }} </title>
+-> II)
+    <title> {{ config('app.name') }} - @yield('title') </title>
+    then in every page just add:
+    @section('title', 'name')
+
+
+#42) Translation & Localization => تبدیل به فارسی
+I) change application's default lang =>
+in config/app.php -> local => 'en'
+you can change into persian     locale => 'fa'
+
+II) if you want to have persina fake names =>
+in config/app.php -> faker_local => 'fa_IR'
+
+OR
+
+in model factories
+$faker = Factory::create('fa_IR');
+return [
+    'name' => $faker->name()
+]
+
+III) translate into another lang
+-> php artisan lang:publish
+-> create short hand of lang you want to use in lang dir =>     lang\fa
+-> copy/paste php files from lang\en into lang\fa and translate them into persian
+-> you can also create your own files which are handeling blade templates. like idea.php
+-> to translate
+first: locale => fa
+second: in lang\fa type codes you need to be translated in both langs. forexample
+<?php
+
+return [
+    'dashboard.header' => 'خوش آمدید'
+];
+third: to access them in blade you can use these three methods:
+    <h4> {{ __('idea.dashborad.header') }} </h4>
+    <h4> {{ trans('idea.dashborad.header') }} </h4>
+    <h4> @lang('idea.dashborad.header') </h4>
+
+syntax => '<phpFileName>.<methodName>'
+
+#43) Dynamic Translation & Localization
+I) AppServiceProvider->boot() {
+    app()->setLocale('fa');
+}
+
+II) if you want to use icons visit what is added in laravel\localization bookmark in chrome
+this is final simple of persian and eng in dropdown in bootstrap:
+
+    <li class="nav-item dropdown mx-1">
+        <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false"><i class="fa fa-language" aria-hidden="true"></i></a>
+        <div class="dropdown-menu">
+            <h6 class="dropdown-header">Select Language</h6>
+            <a class="dropdown-item" href="{{ route() }}"><img src="{{ asset('vendor/blade-flags/language-en.svg') }}" width="32" height="32"/> English</a>
+            <a class="dropdown-item" href="{{ route() }}"><img src="{{ asset('vendor/blade-flags/language-fa.svg') }}" width="32" height="32"/> فارسی</a>
+        </div>
+    </li>
+
+III) create route for every lang, add function that changes locale
+
+Route::get(lang/{lang}, function ($lang) {
+    app()->setLocale($lang)
+    session()->put('locale', $lang)     => to access locale through whole app you need to create a middleware
+    return;
+})
+
+IV) create middleware and add it in 'web' group middlewares in kernel
+
+
+
+#44) global blade variable
+as you remeber you copy/paste nearly to every controller,       top_user:
+$top_users = User::withCount('ideas')->orderByDesc('ideas_count')->limit(3)->get();
+return view(, [
+    'topuser => $topuser
+])
+ to fix this we use global variable =>
+
+I) in AppServiceProvider in boot method:
+pufu boot()
+{
+    View::share('top_users', User::withCount('ideas')->orderByDesc('ideas_count)->limit(3)->get());
+}
+View from support facade
+
+#45) laravel Scopes => sth like global variable
+I) define scopes in models
+II) how to define?
+    pufu scopeFunction ($query)
+    {
+        // logic
+    }
+example =>
+
+-> in idea model:
+        pufu scopeSearch(Builder $query, $search = '') : void
+        {
+            $query->where('content', 'LIKE', '%'. $search .'%')->get();
+        }
+NOTE: Builder is from => Illuminate\Database\Eloquent\Builder;
+
+III) everywhere elese you want to use from this scope:
+    $idea = Idea::search($request->search);
+    $idea = $idea->search('sth to search');
+
+
+#46) caching => watch the course again
+I) in production mode in .env file search for   CACHE_DRIVER    there you can change its value into     redis
+II) then add your host root and password in REDIS_HOST, REDIS_PASSWORD, REDIS_PORT
+III) add related changes in cache.php config too
+IV) then in AppServiceProvider do as this simple example:
+
+    $top_users = Cache::remember('top_users', now()->addminutes(2), function () {
+        return User::withCount('ideas')->orderByDesc('ideas_count')->limit(3)->get();
+    });
+
+    View::share('top_users', $top_users);
+
+NOTE:   Cache::remeber() accepts three args
+    1) key value which is being shared through all views
+    2) ttl or time of expire => in this example for 2 mins
+    3) the closure for key
+
+V) to clear cache manually:
+    -> php artisan cache:clear
+    -> Cache::flush();
+    -> Cache::forget(key);  =>   Cache::forget('top_users');
+
+
+#47) admin panel => onlu important NOTEs
+
+
+extra practices:
+
+Google Login
+1) google developer console -> api & services -> credentials -> create credentials -> OAuth
+2) add url =>     http://localhost:8000/auth/google/callback
+3) paste client id and passwords in .env
+    GOOGLE_CLIENT_ID=
+    GOOGLE_CLIENT_SECRET=
+    GOOGLE_CALLBACK_URL=
+4) in service.php =>
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_CALLBACK_URL'),
+    ],
+5) add Routes in auth.php and create controller for handeling methods
+    Route::get('auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
+    Route::get('auth/google', [GoogleAuthController::class, 'callback']);
+6) in redirect()
+    public function redirect()
+    {
+        return Socialite::driver('google')->redirect();
+    }
+-> then add a button for this method in which view you need it.
+
+7) in callback()
+    public function callback()
+    {
+        $google_user = Socialite::driver('google')->user();
+
+        $user = User::updateOrCreate( [
+            'name' => $google_user->name,
+            'email' => $google_user->email,
+            'password' => bcrypt($google_user->token),
+            'profile' => $google_user->avatar
+        ]);
+
+        Auth::login($user);
+
+        return redirect()->route('home')->with('message', 'Welcome '. $user->name);
+    }
+
+
+verify email
+1) in User -> implement MustVerifyEmail
+2) 
