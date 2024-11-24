@@ -1,0 +1,1 @@
+<?php /**PATH D:\roocket\Back\PHP\Laravel\youtube\yelo code\ideas\resources\views/components/card/user-info.blade.php ENDPATH**/ ?>
